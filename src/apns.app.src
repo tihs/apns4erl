@@ -1,0 +1,15 @@
+{application, apns,
+ [
+  {description, ""},
+  {vsn, "1.0.6"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  ssl,
+                  jiffy
+                 ]},
+  {mod, {apns, []}},
+  {env, []},
+  {modules, []}
+ ]}.
