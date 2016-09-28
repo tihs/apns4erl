@@ -1,9 +1,0 @@
-{application,apns,
-             [{description,[]},
-              {vsn,"1.0.6"},
-              {registered,[]},
-              {applications,[kernel,stdlib,ssl,jiffy]},
-              {mod,{apns,[]}},
-              {env,[]},
-              {modules,[apns,apns_SUITE,apns_connection,apns_queue,
-                        apns_sup]}]}.
