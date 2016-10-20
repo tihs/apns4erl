@@ -22,6 +22,7 @@
                 out_buffer = <<>> :: binary(),
                 queue             :: pid(),
                 out_expires       :: integer(),
+					 apns_recv			= 0,
                 error_logger_fun  :: fun((string(), list()) -> _),
                 info_logger_fun   :: fun((string(), list()) -> _),
                 name              :: atom() | string()}).
@@ -191,7 +192,7 @@ handle_cast(Msg, State=#state{ out_socket = undefined
     Timeout = epoch() + Connection#apns_connection.expires_conn,
     case open_out(Connection) of
       {ok, Socket} -> 
-		   handle_cast(Msg, State#state{out_socket=Socket, out_expires = Timeout});
+		   handle_cast(Msg, State#state{out_socket=Socket, apns_recv = 0, out_expires = Timeout});
       {error, Reason} -> 
 		   InfoLoggerFun("[ ~p ] ReReconnecting to APNS... ~p", [Name, Reason]),
 		   handle_cast(Msg, State)
@@ -256,7 +257,7 @@ handle_info( {ssl, SslSocket, Data}
           end,
           case erlang:size(Rest) of
             0 -> %% It was a whole package
-              {noreply, State#state{out_buffer = <<>>, out_expires=0}};
+              {noreply, State#state{out_buffer = <<>>, out_expires=0, apns_recv = 1}};
             _ ->
               handle_info(
                 {ssl, SslSocket, Rest}, State#state{out_buffer = <<>>, out_expires=0})
@@ -327,13 +328,14 @@ handle_info({ssl_closed, SslSocket}
            , State = #state{out_socket = SslSocket
                            , info_logger_fun = InfoLoggerFun
                            , name = Name
+						   			, apns_recv = ApnsRecv
                             }) ->
-  InfoLoggerFun("[ ~p ] APNS disconnected", [Name]),
+  InfoLoggerFun("[ ~p ] APNS disconnected socket:~p  apns_recv:~p", [Name, SslSocket, ApnsRecv]),
   {noreply, State#state{out_socket=undefined}};
 
 handle_info(Request, State) ->
   InfoLoggerFun = State#state.info_logger_fun,
-  InfoLoggerFun("unknown_request Request:~p, State:~p", [Request, State]),
+  InfoLoggerFun("unknown_request Request:~p, out:~p in:~p  apns_recv:~p", [Request, State#state.out_socket, State#state.in_socket, State#state.apns_recv]),
   {stop, {unknown_request, Request}, State}.
 
 %% @hidden
