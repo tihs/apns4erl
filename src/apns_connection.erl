@@ -316,8 +316,11 @@ handle_info(reconnect, State = #state{connection = Connection
                                      }) ->
   InfoLoggerFun("[ ~p ] Reconnecting the Feedback server...", [Name]),
   case open_feedback(Connection) of
-    {ok, InSocket} -> {noreply, State#state{in_socket = InSocket}};
-    {error, Reason} -> {stop, {in_closed, Reason}, State}
+    {ok, InSocket} -> 
+		{noreply, State#state{in_socket = InSocket}};
+    {error, Reason} -> 
+    	erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect),		
+		{noreply, State}
   end;
 
 handle_info({ssl_closed, SslSocket}
