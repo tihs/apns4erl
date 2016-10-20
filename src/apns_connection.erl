@@ -85,10 +85,24 @@ init(Name, Connection) ->
   try
     {ok, QID} = apns_queue:start_link(),
     Timeout = epoch() + Connection#apns_connection.expires_conn,
-    case open_out(Connection) of
-      {ok, OutSocket} -> case open_feedback(Connection) of
-          {ok, InSocket} ->
-            {ok, #state{ out_socket = OutSocket
+
+    OutSocket = case open_out(Connection) of
+      {ok, OSocket} -> 
+			 OSocket;
+      {error, Rea1} -> 
+		    io:format("apns error ~p \n", [Rea1]),
+		  	 undefined
+    end,
+		
+	 InSocket = case open_feedback(Connection) of
+      {ok, ISocket} -> ISocket;
+      {error, Rea2} -> 
+		  	 io:format("apns feedback error ~p \n", [Rea2]),
+		    erlang:send_after(Connection#apns_connection.feedback_timeout, self(), reconnect),
+			 undefined
+  	 end,
+
+	 {ok, #state{ out_socket = OutSocket
                        , in_socket  = InSocket
                        , connection = Connection
                        , queue      = QID
@@ -98,13 +112,11 @@ init(Name, Connection) ->
                           Connection#apns_connection.error_logger_fun
                        , info_logger_fun  =
                           Connection#apns_connection.info_logger_fun
-                       }};
-          {error, Reason} -> {stop, Reason}
-        end;
-      {error, Reason} -> {stop, Reason}
-    end
+                       }}
   catch
-    _:{error, Reason2} -> {stop, Reason2}
+    _:{error, Reason2} -> 
+		io:format("\r\n apns init error 3 ~p \r\n", Reason2),
+		{stop, Reason2}
   end.
 
 %% @hidden
@@ -142,7 +154,8 @@ open_out(Connection) ->
     Connection#apns_connection.timeout
   ) of
     {ok, OutSocket} -> {ok, OutSocket};
-    {error, Reason} -> {error, Reason}
+    {error, Reason} -> 
+		{error, Reason}
   end.
 
 %% @hidden
@@ -177,10 +190,11 @@ handle_cast(Msg, State=#state{ out_socket = undefined
     InfoLoggerFun("[ ~p ] Reconnecting to APNS...", [Name]),
     Timeout = epoch() + Connection#apns_connection.expires_conn,
     case open_out(Connection) of
-      {ok, Socket} -> handle_cast(Msg,
-                                  State#state{out_socket=Socket
-                                             , out_expires = Timeout});
-      {error, Reason} -> {stop, {error, Reason}, State}
+      {ok, Socket} -> 
+		   handle_cast(Msg, State#state{out_socket=Socket, out_expires = Timeout});
+      {error, Reason} -> 
+		   InfoLoggerFun("[ ~p ] ReReconnecting to APNS... ~p", [Name, Reason]),
+		   handle_cast(Msg, State)
     end
   catch
     _:{error, Reason2} -> {stop, {error, Reason2}, State}
