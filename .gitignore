@@ -1,4 +1,4 @@
-/ebin/
+ebin/
 /.project
 /rel/mongooseim
 .rebar/
